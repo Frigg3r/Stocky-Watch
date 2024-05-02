@@ -1,0 +1,30 @@
+.custom-navbar {
+    background-color: #0D0D0D;
+    font-family: 'Jura', sans-serif;
+    height: 75px !important; /* Установка ширины в 100% */
+  }
+  
+  .custom-navbar .navbar-nav .nav-link,
+  .custom-navbar .navbar-brand {
+    color: #BFB6AE !important; /* Цвет текста надписей */
+    margin-right: 40px; /* Увеличение расстояния между левыми вкладками */
+  }
+  
+  .custom-navbar .navbar-nav .nav-link:hover {
+    color: #D9B97E !important; /* Цвет текста надписей при наведении */
+  }
+  
+  .navbar-collapse {
+    background-color: #0D0D0D !important; /* Применение того же фона для меню бургера */
+  }
+  
+  @media (max-width: 768px) {
+    .navbar-collapse {
+      position: absolute; /* Положение абсолютное, чтобы вкладки были по центру */
+      top: 75px; /* Отступ сверху, чтобы учитывать высоту хедера */
+      left: 0;
+      right: 0;
+      text-align: center; /* Выравнивание по центру */
+    }
+  }
+  

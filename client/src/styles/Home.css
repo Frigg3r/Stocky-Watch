@@ -1,0 +1,73 @@
+.home-container {
+    padding-top: 120px; /* Отступ сверху */
+  }
+  
+.main-heading {
+    color:#1d1d1d !important;
+}
+
+
+.main-heading-line3 {
+    font-family: 'Raleway', sans-serif; /* Используем шрифт Raleway */
+    font-size: 24px; /* Размер шрифта */
+    font-weight: 555; /* Начертание шрифта */
+    text-align: center; /* Выравнивание текста по центру */
+    padding-top: 60px; /* Отступ сверху */
+  }
+  
+
+/* Home.css */
+
+/* Home.css */
+
+.image-container {
+    text-align: center;
+    padding-top: 30px;
+    overflow: hidden; /* Скрытие избыточной части изображения */
+    max-width: 40%; /* Максимальная ширина контейнера */
+    margin: auto;
+  }
+  
+  .audemars-image {
+    width: 100%; /* Ширина изображения равна ширине контейнера */
+    height: auto;
+    display: block;
+  }
+  
+  .button-container {
+    text-align: center;
+    padding-top: 15px;
+  }
+  
+  .buy-button {
+    background-color: #000;
+    color: #fff;
+    padding: 10px 40px;
+    border: none;
+    border-radius: 5px;
+    font-size: 18px;
+    cursor: pointer;
+  }
+  
+  .buy-button:hover {
+    background-color: #222;
+  }
+  
+  @media (max-width: 767px) {
+    .main-heading-line3 {
+      font-size: 18px !important; /* Уменьшаем размер шрифта */
+      padding-top: 30px !important; /* Уменьшаем отступ сверху */
+    }
+    
+    .image-container {
+      padding-top: 30px !important; /* Увеличиваем отступ сверху */
+      max-width: 80% !important; /* Увеличиваем максимальную ширину контейнера */
+    }
+
+    .buy-button {
+        padding: 8px 30px; /* Уменьшаем отступы кнопки */
+        font-size: 16px; /* Уменьшаем размер шрифта */
+      }      
+
+  }
+  
