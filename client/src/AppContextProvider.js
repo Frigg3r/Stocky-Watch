@@ -25,15 +25,12 @@ function AppContextProvider() {
 
     useEffect(() => {
         fetchData()
-    }, [])
+        }, [])
+    
     return (
         <>
             {!loading ? (
-                isLoggedIn ? (
                     <App currentUserInfo={currentUserInfo} />
-                ) : (
-                    <LoginForm setCurrentUserInfo={v => setCurrentUserInfo(v)} setIsLoggedIn={() => setIsLoggedIn(true)} />
-                )
             ) : (
                 <>
                     <Spin

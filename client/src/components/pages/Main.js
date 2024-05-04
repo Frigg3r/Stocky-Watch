@@ -1,5 +1,5 @@
 import React from 'react';
-import '../../styles/Home.css'; // Обновляем путь к файлу стилей
+import '../../styles/Main.css'; // Обновляем путь к файлу стилей
 import audemarshome from '../../images/audemarshome.jpg'; // Импортируем изображение
 
 export default function Home() {
