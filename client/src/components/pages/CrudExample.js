@@ -1,139 +1,173 @@
-import { Form, Button, Input, Table, Modal } from 'antd'
-import { ApiService } from '../../services/api.service'
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react';
+import { Button, Card, Modal, Form, Input, notification, Col, Row } from 'antd';
+import { PlusOutlined, ReloadOutlined, EyeOutlined, EditOutlined } from '@ant-design/icons';
+import { ApiService } from '../../services/api.service';
+import '../../styles/CrudExample.css';
 
-const apiService = new ApiService()
+const apiService = new ApiService();
 
-const columns = [
-    {
-        title: 'Id',
-        dataIndex: 'id',
-        key: 'id'
-    },
-    {
-        title: 'Название',
-        dataIndex: 'name',
-        key: 'name'
-    },
-    {
-        title: 'Описание',
-        dataIndex: 'description',
-        key: 'description'
+function CrudExample({ searchQuery, setSearchQuery, currentUserInfo }) {
+    const [items, setItems] = useState([]);
+    const [modalVisible, setModalVisible] = useState(false);
+    const [detailModalVisible, setDetailModalVisible] = useState(false);
+    const [itemRecord, setItemRecord] = useState({});
+
+    useEffect(() => {
+        fetchData();
+    }, [searchQuery]);
+
+    function fetchData() {
+        const endpoint = searchQuery ? `/search?name=${encodeURIComponent(searchQuery)}` : '/items';
+        apiService.get(endpoint).then(res => {
+            setItems(res || []);
+        }).catch(err => {
+            notification.error({ message: 'Error fetching items', description: 'Could not retrieve data from server.' });
+        });
     }
-]
 
-function CrudExample(props) {
-    const isUserAdmin = props.currentUserInfo.role === 'admin'
+    function showItemDetails(item) {
+        setItemRecord(item);
+        setDetailModalVisible(true);
+    }
 
-    const [items, setItems] = useState([])
-    const [modalVisible, setModalVisible] = useState(false)
-    const [itemRecord, setItemRecord] = useState({})
-
-    function showItem(recId) {
-        recId
-            ? apiService.get('/item/' + recId).then(res => {
-                setItemRecord(res)
-                setModalVisible(true)
-            })
-            : setModalVisible(true)
+    function showItem(item = {}) {
+        setItemRecord(item);
+        setModalVisible(true);
     }
 
     function saveItem() {
-        apiService.post('/item', itemRecord).then(() => {
-            close()
-            fetchData()
-        })
+        const method = itemRecord.id ? 'put' : 'post';
+        apiService[method](`/item${itemRecord.id ? '/' + itemRecord.id : ''}`, itemRecord).then(() => {
+            fetchData();  // Обновляем список после сохранения
+            closeModal();
+            notification.success({ message: 'Item saved successfully' });
+        }).catch(err => {
+            notification.error({ message: `Error saving item: ${err}`, description: err.message });
+        });
     }
 
-    function removeItem(recId) {
-        apiService.delete('/item/' + recId).then(() => {
-            close()
-            fetchData()
-        })
+    function removeItem() {
+        apiService.delete(`/item/${itemRecord.id}`).then(() => {
+            fetchData();  // Обновляем список после удаления
+            closeModal();
+            notification.success({ message: 'Item deleted successfully' });
+        }).catch(err => {
+            notification.error({ message: 'Error deleting item', description: err.message });
+        });
     }
 
-    function close() {
-        setItemRecord({})
-        setModalVisible(false)
+    function closeModal() {
+        setModalVisible(false);
+        setDetailModalVisible(false);
+        setItemRecord({});
     }
 
-    function fetchData() {
-        apiService.get('/items').then(res => {
-            setItems(res)
-        })
+    function resetSearch() {
+        setSearchQuery('');  // Сбрасываем поисковый запрос
+        fetchData();  // Загружаем все элементы
     }
 
-    useEffect(() => {
-        fetchData()
-    }, [])
     return (
         <>
-            {isUserAdmin ? (
-                <Button type='primary' onClick={() => showItem()}>
-                    Добавить
-                </Button>
-            ) : (
-                <></>
+            <Row gutter={16} style={{ marginBottom: 16 }}>
+                <Col>
+                    <Button type="default" icon={<ReloadOutlined />} onClick={resetSearch}>
+                        Reset Search
+                    </Button>
+                </Col>
+                {currentUserInfo && currentUserInfo.role === "admin" && (
+                    <Col>
+                        <Button type="primary" icon={<PlusOutlined />} onClick={() => showItem({})}>
+                            Add New Item
+                        </Button>
+                    </Col>
+                )}
+            </Row>
+            <Row gutter={16}>
+                {items.map(item => (
+                    <Col key={item.id} xs={24} sm={12} md={8} lg={6}>
+                        <Card
+                            hoverable
+                            title={item.name}
+                            extra={<>
+                                <Button type="link" onClick={() => showItemDetails(item)}>
+                                    <EyeOutlined />
+                                </Button>
+                                {currentUserInfo && currentUserInfo.role === "admin" && (
+                                    <Button type="link" onClick={() => showItem(item)}>
+                                        <EditOutlined />
+                                    </Button>
+                                )}
+                            </>}
+                            style={{ marginBottom: 16 }}
+                        >
+                            <img src={item.photo} alt={item.name} style={{ width: '100%', height: '200px', objectFit: 'cover' }} />
+                            <p>{item.description}</p>
+                            <p>Brand: {item.brand_name}</p>
+                            <p>Country: {item.country_name}</p>
+                            <p>Quantity: {item.quantity}</p>
+                            <p>Cost: ${item.cost}</p>
+                        </Card>
+                    </Col>
+                ))}
+            </Row>
+            {modalVisible && (
+                <Modal
+                    title={itemRecord.id ? `Edit Item ${itemRecord.id}` : 'Add New Item'}
+                    visible={modalVisible}
+                    onOk={saveItem}
+                    onCancel={closeModal}
+                    footer={[
+                        <Button key="back" onClick={closeModal}>Cancel</Button>,
+                        <Button key="delete" danger onClick={removeItem}>Delete</Button>,
+                        <Button key="submit" type="primary" onClick={saveItem}>Save</Button>
+                    ]}
+                >
+                    <Form layout="vertical" onFinish={saveItem} initialValues={{ ...itemRecord }}>
+                        <Form.Item label="Name" name="name">
+                            <Input onChange={e => setItemRecord({ ...itemRecord, name: e.target.value })} />
+                        </Form.Item>
+                        <Form.Item label="Description" name="description">
+                            <Input.TextArea onChange={e => setItemRecord({ ...itemRecord, description: e.target.value })} />
+                        </Form.Item>
+                        <Form.Item label="Brand ID" name="id_brand">
+                            <Input type="number" onChange={e => setItemRecord({ ...itemRecord, id_brand: parseInt(e.target.value, 10) })} />
+                        </Form.Item>
+                        <Form.Item label="Country ID" name="id_country">
+                            <Input type="number" onChange={e => setItemRecord({ ...itemRecord, id_country: parseInt(e.target.value, 10) })} />
+                        </Form.Item>
+                        <Form.Item label="Quantity" name="quantity">
+                            <Input type="number" onChange={e => setItemRecord({ ...itemRecord, quantity: parseInt(e.target.value, 10) })} />
+                        </Form.Item>
+                        <Form.Item label="Cost" name="cost">
+                            <Input
+                                prefix="$"
+                                type="number"
+                                onChange={e => setItemRecord({ ...itemRecord, cost: parseFloat(e.target.value) })}
+                            />
+                        </Form.Item>
+                    </Form>
+                </Modal>
             )}
-            <Table
-                pagination={{ position: ['topRight'] }}
-                dataSource={items}
-                columns={columns}
-                rowKey='id'
-                onRow={rec => {
-                    return {
-                        onClick: () => showItem(rec.id)
-                    }
-                }}
-            ></Table>
-            <Modal
-                title={itemRecord.id ? 'Изменение сущности с id=' + itemRecord.id : 'Добавление новой сущности'}
-                open={modalVisible}
-                okText='Сохранить'
-                cancelText='Отмена'
-                onCancel={() => close()}
-                centered
-                footer={[
-                    isUserAdmin ? (
-                        <Button type='primary' onClick={() => saveItem()} disabled={!itemRecord.name || !itemRecord.description}>
-                            Сохранить
-                        </Button>
-                    ) : null,
-                    isUserAdmin && itemRecord.id ? (
-                        <Button danger onClick={() => removeItem(itemRecord.id)}>
-                            Удалить
-                        </Button>
-                    ) : null,
-                    <Button onClick={() => close()}>Отмена</Button>
-                ]}
-            >
-                <Form labelAlign='left' labelCol={{ span: 4 }} wrapperCol={{ span: 18 }}>
-                    <Form.Item label='Название'>
-                        <Input
-                            disabled={!isUserAdmin}
-                            onChange={v =>
-                                setItemRecord(prevState => {
-                                    return { ...prevState, name: v.target.value }
-                                })
-                            }
-                            value={itemRecord.name}
-                        />
-                    </Form.Item>
-                    <Form.Item label='Описание'>
-                        <Input
-                            disabled={!isUserAdmin}
-                            onChange={v =>
-                                setItemRecord(prevState => {
-                                    return { ...prevState, description: v.target.value }
-                                })
-                            }
-                            value={itemRecord.description}
-                        />
-                    </Form.Item>
-                </Form>
-            </Modal>
+            {detailModalVisible && (
+                <Modal
+                    title={`Details for ${itemRecord.name}`}
+                    visible={detailModalVisible}
+                    onCancel={() => setDetailModalVisible(false)}
+                    footer={[
+                        <Button key="close" onClick={() => setDetailModalVisible(false)}>Close</Button>
+                    ]}
+                >
+                    <p><strong>Brand:</strong> {itemRecord.brand_name}</p>
+                    <p><strong>Country:</strong> {itemRecord.country_name}</p>
+                    <p><strong>Description:</strong> {itemRecord.description}</p>
+                    <img src={itemRecord.photo} alt={itemRecord.name} style={{ width: '100%', height: '200px', objectFit: 'cover' }} />
+                    <p><strong>Quantity:</strong> {itemRecord.quantity}</p>
+                    <p><strong>Cost:</strong> ${itemRecord.cost}</p>
+                </Modal>
+            )}
         </>
-    )
+    );
 }
 
-export default CrudExample
+export default CrudExample;

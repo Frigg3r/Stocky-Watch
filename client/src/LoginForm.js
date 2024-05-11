@@ -92,7 +92,11 @@ function LoginForm(props) {
                         )}
                     </Form>
                     {authErrorMessage && <div className='auth-error-message'>{authErrorMessage}</div>}
-                    <Button type='primary' style={{ width: 200 }} onClick={auth}>
+                    <Button type='primary' style={{ width: 200 }} onClick={(e) => {
+                        e.preventDefault();
+                        auth();
+                        document.location.reload(); // Перезагрузка страницы после выполнения аутентификации или регистрации
+                    }}>
                         {isLogin ? 'Войти' : 'Зарегистрироваться'}
                     </Button>
                     <p>
