@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 const validateMessages = {
     required: 'Обязательное поле!',
     string: { min: 'Минимум 8 символов!' }
-}
+};
 
 const authService = new AuthService();
 
@@ -20,16 +20,18 @@ function LoginForm(props) {
         try {
             await form.validateFields();
             const values = form.getFieldsValue();
+            console.log('Auth values:', values); // Логируем значения формы
             const res = isLogin ? await authService.login(values) : await authService.register(values);
+            console.log('Auth response:', res); // Логируем ответ сервера
             if (res.success) {
                 props.setCurrentUserInfo(res.userInfo);
-                props.setIsLoggedIn();
-                navigate('/'); // Это должно корректно перенаправить пользователя на главную страницу
+                props.setIsLoggedIn(true);
             } else {
                 setAuthErrorMessage(isLogin ? 'Не верные логин или пароль!' : 'Такой логин уже есть!');
             }
         } catch (err) {
             console.log('Ошибка валидации или запроса:', err);
+            setAuthErrorMessage('Ошибка валидации или запроса');
         }
     }
 
@@ -94,8 +96,13 @@ function LoginForm(props) {
                     {authErrorMessage && <div className='auth-error-message'>{authErrorMessage}</div>}
                     <Button type='primary' style={{ width: 200 }} onClick={(e) => {
                         e.preventDefault();
-                        auth();
-                        document.location.reload(); // Перезагрузка страницы после выполнения аутентификации или регистрации
+                        auth().then(() => {
+                            console.log('Auth successful, reloading page...');
+                            document.location.reload(); // Перезагрузка страницы после выполнения аутентификации или регистрации
+                        }).catch((err) => {
+                            console.log('Ошибка при выполнении запроса:', err);
+                            setAuthErrorMessage('Ошибка при выполнении запроса');
+                        });
                     }}>
                         {isLogin ? 'Войти' : 'Зарегистрироваться'}
                     </Button>

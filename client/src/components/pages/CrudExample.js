@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Button, Card, Modal, Form, Input, notification, Col, Row } from 'antd';
-import { PlusOutlined, ReloadOutlined, EyeOutlined, EditOutlined } from '@ant-design/icons';
+import { PlusOutlined, ReloadOutlined, EyeOutlined, EditOutlined, HeartOutlined } from '@ant-design/icons';
 import { ApiService } from '../../services/api.service';
 import '../../styles/CrudExample.css';
 
@@ -56,6 +56,19 @@ function CrudExample({ searchQuery, setSearchQuery, currentUserInfo }) {
         });
     }
 
+    function addToFavorites(itemId) {
+        console.log('Current user info:', currentUserInfo); // Debugging information
+        if (currentUserInfo && currentUserInfo.id) {
+            apiService.postToFavorites(currentUserInfo.id, itemId).then(() => {
+                notification.success({ message: 'Added to favorites successfully' });
+            }).catch(err => {
+                notification.error({ message: 'Error adding to favorites', description: err.message });
+            });
+        } else {
+            notification.error({ message: 'You need to log in to add to favorites' });
+        }
+    }
+
     function closeModal() {
         setModalVisible(false);
         setDetailModalVisible(false);
@@ -98,6 +111,9 @@ function CrudExample({ searchQuery, setSearchQuery, currentUserInfo }) {
                                         <EditOutlined />
                                     </Button>
                                 )}
+                                <Button type="link" onClick={() => addToFavorites(item.id)}>
+                                    <HeartOutlined />
+                                </Button>
                             </>}
                             style={{ marginBottom: 16 }}
                         >
