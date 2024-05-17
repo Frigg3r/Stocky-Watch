@@ -1,19 +1,29 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Card, Modal, Form, Input, notification, Col, Row } from 'antd';
-import { PlusOutlined, ReloadOutlined, EyeOutlined, EditOutlined, HeartOutlined } from '@ant-design/icons';
+import { Button, Card, Modal, Form, Input, notification, Col, Row, Select } from 'antd';
+import { PlusOutlined, ReloadOutlined, EyeOutlined, EditOutlined, HeartOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import { ApiService } from '../../services/api.service';
 import '../../styles/CrudExample.css';
 
 const apiService = new ApiService();
+const { Option } = Select;
 
 function CrudExample({ searchQuery, setSearchQuery, currentUserInfo }) {
     const [items, setItems] = useState([]);
     const [modalVisible, setModalVisible] = useState(false);
     const [detailModalVisible, setDetailModalVisible] = useState(false);
     const [itemRecord, setItemRecord] = useState({});
+    const [categories, setCategories] = useState([]);
+    const [characteristics, setCharacteristics] = useState([]);
+    const [brands, setBrands] = useState([]);
+    const [countries, setCountries] = useState([]);
+    const [form] = Form.useForm();
 
     useEffect(() => {
         fetchData();
+        fetchCategories();
+        fetchCharacteristics();
+        fetchBrands();
+        fetchCountries();
     }, [searchQuery]);
 
     function fetchData() {
@@ -25,24 +35,108 @@ function CrudExample({ searchQuery, setSearchQuery, currentUserInfo }) {
         });
     }
 
+    function fetchCategories() {
+        apiService.get('/categories').then(res => {
+            setCategories(res || []);
+        }).catch(err => {
+            notification.error({ message: 'Error fetching categories', description: 'Could not retrieve data from server.' });
+        });
+    }
+
+    function fetchCharacteristics() {
+        apiService.get('/characteristics').then(res => {
+            setCharacteristics(res || []);
+        }).catch(err => {
+            notification.error({ message: 'Error fetching characteristics', description: 'Could not retrieve data from server.' });
+        });
+    }
+
+    function fetchBrands() {
+        apiService.get('/brands').then(res => {
+            setBrands(res || []);
+        }).catch(err => {
+            notification.error({ message: 'Error fetching brands', description: 'Could not retrieve data from server.' });
+        });
+    }
+
+    function fetchCountries() {
+        apiService.get('/countries').then(res => {
+            setCountries(res || []);
+        }).catch(err => {
+            notification.error({ message: 'Error fetching countries', description: 'Could not retrieve data from server.' });
+        });
+    }
+
+    function fetchItemWithDetails(id) {
+        return apiService.get(`/item/${id}`).then(item => {
+            return {
+                ...item,
+                categories: item.categories || [],
+                characteristics: item.characteristics || [],
+                photo: item.photo || ''
+            };
+        });
+    }
+
     function showItemDetails(item) {
-        setItemRecord(item);
-        setDetailModalVisible(true);
+        fetchItemWithDetails(item.id).then(fullItem => {
+            setItemRecord(fullItem);
+            setDetailModalVisible(true);
+        });
     }
 
     function showItem(item = {}) {
-        setItemRecord(item);
-        setModalVisible(true);
+        form.resetFields(); // Reset the form fields before setting modal visible
+        if (item.id) {
+            fetchItemWithDetails(item.id).then(fullItem => {
+                setItemRecord(fullItem);
+                form.setFieldsValue(fullItem);
+                setModalVisible(true);
+            });
+        } else {
+            setItemRecord({}); // Reset itemRecord to an empty object
+            setModalVisible(true); // Open the modal after resetting the state
+            form.setFieldsValue({ 
+                name: '', 
+                description: '', 
+                id_brand: '', 
+                id_country: '', 
+                quantity: '', 
+                cost: '', 
+                categories: [], 
+                characteristics: [], 
+                photo: '' 
+            }); // Ensure form fields are reset
+        }
     }
 
     function saveItem() {
-        const method = itemRecord.id ? 'put' : 'post';
-        apiService[method](`/item${itemRecord.id ? '/' + itemRecord.id : ''}`, itemRecord).then(() => {
-            fetchData();  // Обновляем список после сохранения
-            closeModal();
-            notification.success({ message: 'Item saved successfully' });
-        }).catch(err => {
-            notification.error({ message: `Error saving item: ${err}`, description: err.message });
+        form.validateFields().then(values => {
+            const method = itemRecord.id ? 'put' : 'post';
+            apiService[method](`/item${itemRecord.id ? '/' + itemRecord.id : ''}`, { ...itemRecord, ...values }).then(item => {
+                // Сохраняем фото после создания/редактирования товара
+                if (values.photo) {
+                    const photoMethod = itemRecord.id ? 'put' : 'post';
+                    const photoEndpoint = itemRecord.id ? `/photo/${itemRecord.id}` : '/photo';
+                    apiService[photoMethod](photoEndpoint, { id_item: item.id, url: values.photo }).then(photoResponse => {
+                        console.log('Photo saved:', photoResponse); // Логирование ответа
+                        fetchData();  // Обновляем список после сохранения
+                        closeModal();
+                        notification.success({ message: 'Item saved successfully' });
+                    }).catch(err => {
+                        console.error('Error saving photo:', err); // Логирование ошибки
+                        notification.error({ message: 'Error saving photo', description: err.message });
+                    });
+                } else {
+                    fetchData();  // Обновляем список после сохранения
+                    closeModal();
+                    notification.success({ message: 'Item saved successfully' });
+                }
+            }).catch(err => {
+                notification.error({ message: `Error saving item: ${err}`, description: err.message });
+            });
+        }).catch(info => {
+            console.log('Validate Failed:', info);
         });
     }
 
@@ -52,6 +146,7 @@ function CrudExample({ searchQuery, setSearchQuery, currentUserInfo }) {
             closeModal();
             notification.success({ message: 'Item deleted successfully' });
         }).catch(err => {
+            console.error('Error deleting item:', err); // Логирование ошибки на клиенте
             notification.error({ message: 'Error deleting item', description: err.message });
         });
     }
@@ -73,6 +168,7 @@ function CrudExample({ searchQuery, setSearchQuery, currentUserInfo }) {
         setModalVisible(false);
         setDetailModalVisible(false);
         setItemRecord({});
+        form.resetFields();
     }
 
     function resetSearch() {
@@ -118,9 +214,7 @@ function CrudExample({ searchQuery, setSearchQuery, currentUserInfo }) {
                             style={{ marginBottom: 16 }}
                         >
                             <img src={item.photo} alt={item.name} style={{ width: '100%', height: '200px', objectFit: 'cover' }} />
-                            <p>{item.description}</p>
                             <p>Brand: {item.brand_name}</p>
-                            <p>Country: {item.country_name}</p>
                             <p>Quantity: {item.quantity}</p>
                             <p>Cost: ${item.cost}</p>
                         </Card>
@@ -135,33 +229,104 @@ function CrudExample({ searchQuery, setSearchQuery, currentUserInfo }) {
                     onCancel={closeModal}
                     footer={[
                         <Button key="back" onClick={closeModal}>Cancel</Button>,
-                        <Button key="delete" danger onClick={removeItem}>Delete</Button>,
+                        itemRecord.id && (
+                            <Button key="delete" danger onClick={removeItem}>Delete</Button>
+                        ),
                         <Button key="submit" type="primary" onClick={saveItem}>Save</Button>
                     ]}
                 >
-                    <Form layout="vertical" onFinish={saveItem} initialValues={{ ...itemRecord }}>
-                        <Form.Item label="Name" name="name">
-                            <Input onChange={e => setItemRecord({ ...itemRecord, name: e.target.value })} />
+                    <Form form={form} layout="vertical" onFinish={saveItem} initialValues={{ ...itemRecord }}>
+                        <Form.Item label="Name" name="name" rules={[{ required: true, message: 'Please input the name!' }]}>
+                            <Input />
                         </Form.Item>
-                        <Form.Item label="Description" name="description">
-                            <Input.TextArea onChange={e => setItemRecord({ ...itemRecord, description: e.target.value })} />
+                        <Form.Item label="Description" name="description" rules={[{ required: true, message: 'Please input the description!' }]}>
+                            <Input.TextArea />
                         </Form.Item>
-                        <Form.Item label="Brand ID" name="id_brand">
-                            <Input type="number" onChange={e => setItemRecord({ ...itemRecord, id_brand: parseInt(e.target.value, 10) })} />
+                        <Form.Item label="Brand" name="id_brand" rules={[{ required: true, message: 'Please select the brand!' }]}>
+                            <Select placeholder="Select brand">
+                                {brands.map(brand => (
+                                    <Option key={brand.id_brand} value={brand.id_brand}>
+                                        {brand.name}
+                                    </Option>
+                                ))}
+                            </Select>
                         </Form.Item>
-                        <Form.Item label="Country ID" name="id_country">
-                            <Input type="number" onChange={e => setItemRecord({ ...itemRecord, id_country: parseInt(e.target.value, 10) })} />
+                        <Form.Item label="Country" name="id_country" rules={[{ required: true, message: 'Please select the country!' }]}>
+                            <Select placeholder="Select country">
+                                {countries.map(country => (
+                                    <Option key={country.id_country} value={country.id_country}>
+                                        {country.name}
+                                    </Option>
+                                ))}
+                            </Select>
                         </Form.Item>
-                        <Form.Item label="Quantity" name="quantity">
-                            <Input type="number" onChange={e => setItemRecord({ ...itemRecord, quantity: parseInt(e.target.value, 10) })} />
+                        <Form.Item label="Quantity" name="quantity" rules={[{ required: true, message: 'Please input the quantity!' }]}>
+                            <Input type="number" />
                         </Form.Item>
-                        <Form.Item label="Cost" name="cost">
-                            <Input
-                                prefix="$"
-                                type="number"
-                                onChange={e => setItemRecord({ ...itemRecord, cost: parseFloat(e.target.value) })}
-                            />
+                        <Form.Item label="Cost" name="cost" rules={[{ required: true, message: 'Please input the cost!' }]}>
+                            <Input prefix="$" type="number" />
                         </Form.Item>
+                        <Form.Item label="Photo URL" name="photo" rules={[{ required: true, message: 'Please input the photo URL!' }]}>
+                            <Input />
+                        </Form.Item>
+                        <Form.Item label="Categories" name="categories" initialValue={itemRecord.categories || []}>
+                            <Select mode="multiple" placeholder="Select categories">
+                                {categories.map(category => (
+                                    <Option key={category.id_category} value={category.id_category}>
+                                        {category.name}
+                                    </Option>
+                                ))}
+                            </Select>
+                        </Form.Item>
+                        <Form.List name="characteristics" initialValue={itemRecord.characteristics || []}>
+                            {(fields, { add, remove }) => (
+                                <>
+                                    {fields.map(({ key, name, fieldKey, ...restField }) => (
+                                        <Row gutter={16} key={key}>
+                                            <Col span={8}>
+                                                <Form.Item
+                                                    {...restField}
+                                                    name={[name, 'id_characteristic']}
+                                                    fieldKey={[fieldKey, 'id_characteristic']}
+                                                    rules={[{ required: true, message: 'Missing characteristic' }]}
+                                                >
+                                                    <Select placeholder="Select characteristic">
+                                                        {characteristics.map(characteristic => (
+                                                            <Option key={characteristic.id_characteristic} value={characteristic.id_characteristic}>
+                                                                {characteristic.name}
+                                                            </Option>
+                                                        ))}
+                                                    </Select>
+                                                </Form.Item>
+                                            </Col>
+                                            <Col span={14}>
+                                                <Form.Item
+                                                    {...restField}
+                                                    name={[name, 'value']}
+                                                    fieldKey={[fieldKey, 'value']}
+                                                    rules={[{ required: true, message: 'Missing value' }]}
+                                                >
+                                                    <Input placeholder="Value" />
+                                                </Form.Item>
+                                            </Col>
+                                            <Col span={2}>
+                                                <Button
+                                                    type="dashed"
+                                                    onClick={() => remove(name)}
+                                                    icon={<MinusCircleOutlined />}
+                                                >
+                                                </Button>
+                                            </Col>
+                                        </Row>
+                                    ))}
+                                    <Form.Item>
+                                        <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
+                                            Add characteristic
+                                        </Button>
+                                    </Form.Item>
+                                </>
+                            )}
+                        </Form.List>
                     </Form>
                 </Modal>
             )}
@@ -180,6 +345,13 @@ function CrudExample({ searchQuery, setSearchQuery, currentUserInfo }) {
                     <img src={itemRecord.photo} alt={itemRecord.name} style={{ width: '100%', height: '200px', objectFit: 'cover' }} />
                     <p><strong>Quantity:</strong> {itemRecord.quantity}</p>
                     <p><strong>Cost:</strong> ${itemRecord.cost}</p>
+                    <p><strong>Categories:</strong> {categories.filter(c => itemRecord.categories.includes(c.id_category)).map(c => c.name).join(', ')}</p>
+                    <p><strong>Characteristics:</strong></p>
+                    <ul>
+                        {itemRecord.characteristics.map(c => (
+                            <li key={c.id_characteristic}>{characteristics.find(ch => ch.id_characteristic === c.id_characteristic)?.name}: {c.value}</li>
+                        ))}
+                    </ul>
                 </Modal>
             )}
         </>

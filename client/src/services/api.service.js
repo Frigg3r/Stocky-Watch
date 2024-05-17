@@ -58,4 +58,28 @@ export class ApiService {
     removeFromFavorites(userId, itemId) {
         return this.delete('/favorites', { userId, itemId });
     }
+
+    getCategories() {
+        return this.get('/categories');
+    }
+
+    getCharacteristics() {
+        return this.get('/characteristics');
+    }
+
+    getBrands() {
+        return this.get('/brands');
+    }
+
+    getCountries() {
+        return this.get('/countries');
+    }
+
+    postPhoto(data) {
+        return this.post('/photo', data);
+    }
+
+    updatePhoto(id, data) {
+        return this.put(`/photo/${id}`, data);
+    }
 }
