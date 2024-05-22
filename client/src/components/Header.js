@@ -1,6 +1,6 @@
 // Header.js
 import React, { useState, useEffect } from 'react';
-import { Navbar, Nav, Container, Button, Form, FormControl } from 'react-bootstrap';
+import { Navbar, Nav, Container, Button, Form } from 'react-bootstrap';
 import { Input } from 'antd';
 import { Link } from 'react-router-dom';
 import { AuthService } from '../services/auth.service';
@@ -10,7 +10,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 
 const authService = new AuthService();
 
-function Header({ setSearchQuery }) {  // Добавлен props для передачи поискового запроса
+function Header({ setSearchQuery }) {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
 
     useEffect(() => {
@@ -20,7 +20,7 @@ function Header({ setSearchQuery }) {  // Добавлен props для пере
     }, []);
 
     function handleSearch(value) {
-        setSearchQuery(value);  // Обновление состояния поискового запроса в App
+        setSearchQuery(value);
     }
 
     function logout() {
@@ -42,12 +42,13 @@ function Header({ setSearchQuery }) {  // Добавлен props для пере
                         <Nav.Link href="#favorites">Избранное</Nav.Link>
                         <Nav.Link href="#about-us">О нас</Nav.Link>
                     </Nav>
-                    <Form inline>
+                    <Form inline ="true">
                         <Input.Search
                             onSearch={handleSearch}
-                            placeholder="Search..."
+                            placeholder="Поиск..."
                             enterButton="Найти"
                             size="large"
+                            className="custom-search-button"
                         />
                     </Form>
                     <Nav className="ml-auto">

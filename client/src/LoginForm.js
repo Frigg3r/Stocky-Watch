@@ -97,7 +97,8 @@ function LoginForm(props) {
                     <Button type='primary' style={{ width: 200 }} onClick={(e) => {
                         e.preventDefault();
                         auth().then(() => {
-                            console.log('Auth successful, reloading page...');
+                            console.log('Auth successful, navigating to home page...');
+                            navigate('/'); // Перенаправляем на главную страницу
                             document.location.reload(); // Перезагрузка страницы после выполнения аутентификации или регистрации
                         }).catch((err) => {
                             console.log('Ошибка при выполнении запроса:', err);

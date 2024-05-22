@@ -2,15 +2,12 @@ function Footer() {
     return (
         <>
             <div className='footer'>
-                <a className='footer-link' href='https://github.com/Yar-B/react-fullstack'>
-                    Репозиторий проекта
-                </a>
-                <a className='footer-link' href='https://github.com/Yar-B/react-fullstack'>
-                    Автор проекта
-                </a>
+                <div className='footer-text'>
+                    <span>&copy; 2024 StockyWatch</span>
+                </div>
             </div>
         </>
     )
 }
 
-export default Footer
+export default Footer;

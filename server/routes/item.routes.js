@@ -4,7 +4,7 @@ const itemController = require('../controller/item.controller');
 const searchController = require('../controller/search.controller');
 const favoriteController = require('../controller/favorite.controller');
 const characteristicController = require('../controller/characteristic.controller');
-const photoController = require('../controller/photo.controller');  // Добавляем импорт
+const photoController = require('../controller/photo.controller'); 
 
 router.post('/item', itemController.createItem);
 router.get('/items', itemController.getItems);
@@ -23,8 +23,10 @@ router.post('/favorites', favoriteController.addToFavorites);
 router.get('/favorites/:userId', favoriteController.getFavorites);
 router.delete('/favorites', favoriteController.removeFromFavorites);
 
-// Добавляем маршруты для работы с фотографиями
 router.post('/photo', photoController.addPhoto);
 router.put('/photo/:id', photoController.updatePhoto);
+
+// Добавление нового маршрута для получения характеристик по группам
+router.get('/characteristics/by-group', characteristicController.getCharacteristicsByGroup);
 
 module.exports = router;

@@ -82,4 +82,8 @@ export class ApiService {
     updatePhoto(id, data) {
         return this.put(`/photo/${id}`, data);
     }
+
+    searchItems(params) {
+        return this.get(`/search?${params}`);
+    }
 }

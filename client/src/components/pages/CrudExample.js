@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Button, Card, Modal, Form, Input, notification, Col, Row, Select } from 'antd';
 import { PlusOutlined, ReloadOutlined, EyeOutlined, EditOutlined, HeartOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import { ApiService } from '../../services/api.service';
 import '../../styles/CrudExample.css';
+import FilterPanel from '../FilterPanel';
 
 const apiService = new ApiService();
 const { Option } = Select;
@@ -16,6 +17,9 @@ function CrudExample({ searchQuery, setSearchQuery, currentUserInfo }) {
     const [characteristics, setCharacteristics] = useState([]);
     const [brands, setBrands] = useState([]);
     const [countries, setCountries] = useState([]);
+    const [selectedCategories, setSelectedCategories] = useState([]);
+    const [selectedCharacteristics, setSelectedCharacteristics] = useState({});
+    const [characteristicOptions, setCharacteristicOptions] = useState({});
     const [form] = Form.useForm();
 
     useEffect(() => {
@@ -24,46 +28,60 @@ function CrudExample({ searchQuery, setSearchQuery, currentUserInfo }) {
         fetchCharacteristics();
         fetchBrands();
         fetchCountries();
-    }, [searchQuery]);
+    }, [searchQuery, selectedCategories, selectedCharacteristics]);
 
-    function fetchData() {
-        const endpoint = searchQuery ? `/search?name=${encodeURIComponent(searchQuery)}` : '/items';
+    const fetchData = useCallback(() => {
+        const params = new URLSearchParams();
+        if (searchQuery) params.append('name', searchQuery);
+        if (selectedCategories.length > 0) params.append('categories', selectedCategories.join(','));
+
+        Object.keys(selectedCharacteristics).forEach(key => {
+            if (selectedCharacteristics[key].length > 0) {
+                params.append(key, selectedCharacteristics[key].join(','));
+            }
+        });
+
+        const endpoint = `/search?${params.toString()}`;
         apiService.get(endpoint).then(res => {
             setItems(res || []);
         }).catch(err => {
-            notification.error({ message: 'Error fetching items', description: 'Could not retrieve data from server.' });
+            notification.error({ message: 'Ошибка загрузки элементов', description: 'Не удалось получить данные с сервера.' });
         });
-    }
+    }, [searchQuery, selectedCategories, selectedCharacteristics]);
+
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
 
     function fetchCategories() {
-        apiService.get('/categories').then(res => {
+        apiService.getCategories().then(res => {
             setCategories(res || []);
         }).catch(err => {
-            notification.error({ message: 'Error fetching categories', description: 'Could not retrieve data from server.' });
+            notification.error({ message: 'Ошибка загрузки категорий', description: 'Не удалось получить данные с сервера.' });
         });
     }
 
     function fetchCharacteristics() {
-        apiService.get('/characteristics').then(res => {
+        apiService.getCharacteristics().then(res => {
             setCharacteristics(res || []);
         }).catch(err => {
-            notification.error({ message: 'Error fetching characteristics', description: 'Could not retrieve data from server.' });
+            notification.error({ message: 'Ошибка загрузки характеристик', description: 'Не удалось получить данные с сервера.' });
         });
     }
 
     function fetchBrands() {
-        apiService.get('/brands').then(res => {
+        apiService.getBrands().then(res => {
             setBrands(res || []);
         }).catch(err => {
-            notification.error({ message: 'Error fetching brands', description: 'Could not retrieve data from server.' });
+            notification.error({ message: 'Ошибка загрузки брендов', description: 'Не удалось получить данные с сервера.' });
         });
     }
 
     function fetchCountries() {
-        apiService.get('/countries').then(res => {
+        apiService.getCountries().then(res => {
             setCountries(res || []);
         }).catch(err => {
-            notification.error({ message: 'Error fetching countries', description: 'Could not retrieve data from server.' });
+            notification.error({ message: 'Ошибка загрузки стран', description: 'Не удалось получить данные с сервера.' });
         });
     }
 
@@ -72,7 +90,11 @@ function CrudExample({ searchQuery, setSearchQuery, currentUserInfo }) {
             return {
                 ...item,
                 categories: item.categories || [],
-                characteristics: item.characteristics || [],
+                characteristics: item.characteristics.map(c => ({
+                    id_characteristic: c.id_characteristic,
+                    name: characteristics.find(char => char.id_characteristic === c.id_characteristic)?.name.split(': ')[0],
+                    value: c.value
+                })) || [],
                 photo: item.photo || ''
             };
         });
@@ -86,54 +108,62 @@ function CrudExample({ searchQuery, setSearchQuery, currentUserInfo }) {
     }
 
     function showItem(item = {}) {
-        form.resetFields(); // Reset the form fields before setting modal visible
+        form.resetFields();
+        setCharacteristicOptions({});
         if (item.id) {
             fetchItemWithDetails(item.id).then(fullItem => {
                 setItemRecord(fullItem);
                 form.setFieldsValue(fullItem);
                 setModalVisible(true);
+                updateCharacteristicOptions(fullItem.characteristics);
             });
         } else {
-            setItemRecord({}); // Reset itemRecord to an empty object
-            setModalVisible(true); // Open the modal after resetting the state
-            form.setFieldsValue({ 
-                name: '', 
-                description: '', 
-                id_brand: '', 
-                id_country: '', 
-                quantity: '', 
-                cost: '', 
-                categories: [], 
-                characteristics: [], 
-                photo: '' 
-            }); // Ensure form fields are reset
+            setItemRecord({});
+            setModalVisible(true);
+            form.setFieldsValue({
+                name: '',
+                description: '',
+                id_brand: '',
+                id_country: '',
+                quantity: '',
+                cost: '',
+                categories: [],
+                characteristics: [],
+                photo: ''
+            });
         }
+    }
+
+    function updateCharacteristicOptions(characteristics) {
+        const options = {};
+        characteristics.forEach(c => {
+            if (c.name) {
+                const name = c.name;
+                const values = getValuesByCharacteristicName(name);
+                options[name] = { name, values };
+            }
+        });
+        setCharacteristicOptions(options);
     }
 
     function saveItem() {
         form.validateFields().then(values => {
             const method = itemRecord.id ? 'put' : 'post';
-            apiService[method](`/item${itemRecord.id ? '/' + itemRecord.id : ''}`, { ...itemRecord, ...values }).then(item => {
-                // Сохраняем фото после создания/редактирования товара
-                if (values.photo) {
-                    const photoMethod = itemRecord.id ? 'put' : 'post';
-                    const photoEndpoint = itemRecord.id ? `/photo/${itemRecord.id}` : '/photo';
-                    apiService[photoMethod](photoEndpoint, { id_item: item.id, url: values.photo }).then(photoResponse => {
-                        console.log('Photo saved:', photoResponse); // Логирование ответа
-                        fetchData();  // Обновляем список после сохранения
-                        closeModal();
-                        notification.success({ message: 'Item saved successfully' });
-                    }).catch(err => {
-                        console.error('Error saving photo:', err); // Логирование ошибки
-                        notification.error({ message: 'Error saving photo', description: err.message });
-                    });
-                } else {
-                    fetchData();  // Обновляем список после сохранения
-                    closeModal();
-                    notification.success({ message: 'Item saved successfully' });
-                }
+            const characteristicsData = values.characteristics
+                .map(c => {
+                    const id_characteristic = characteristics.find(ch => ch.name.split(': ')[0] === c.name)?.id_characteristic;
+                    return id_characteristic ? { id_characteristic, value: c.value } : null;
+                })
+                .filter(c => c !== null && c.value);
+
+            const itemData = { ...itemRecord, ...values, characteristics: characteristicsData };
+
+            apiService[method](`/item${itemRecord.id ? '/' + itemRecord.id : ''}`, itemData).then(item => {
+                fetchData();
+                closeModal();
+                notification.success({ message: 'Элемент успешно сохранен' });
             }).catch(err => {
-                notification.error({ message: `Error saving item: ${err}`, description: err.message });
+                notification.error({ message: `Ошибка сохранения элемента: ${err.message}`, description: err.message });
             });
         }).catch(info => {
             console.log('Validate Failed:', info);
@@ -142,25 +172,23 @@ function CrudExample({ searchQuery, setSearchQuery, currentUserInfo }) {
 
     function removeItem() {
         apiService.delete(`/item/${itemRecord.id}`).then(() => {
-            fetchData();  // Обновляем список после удаления
+            fetchData();
             closeModal();
-            notification.success({ message: 'Item deleted successfully' });
+            notification.success({ message: 'Элемент успешно удален' });
         }).catch(err => {
-            console.error('Error deleting item:', err); // Логирование ошибки на клиенте
-            notification.error({ message: 'Error deleting item', description: err.message });
+            notification.error({ message: 'Ошибка удаления элемента', description: err.message });
         });
     }
 
     function addToFavorites(itemId) {
-        console.log('Current user info:', currentUserInfo); // Debugging information
         if (currentUserInfo && currentUserInfo.id) {
             apiService.postToFavorites(currentUserInfo.id, itemId).then(() => {
-                notification.success({ message: 'Added to favorites successfully' });
+                notification.success({ message: 'Добавлено в избранное' });
             }).catch(err => {
-                notification.error({ message: 'Error adding to favorites', description: err.message });
+                notification.error({ message: 'Ошибка добавления в избранное', description: err.message });
             });
         } else {
-            notification.error({ message: 'You need to log in to add to favorites' });
+            notification.error({ message: 'Необходимо войти в систему, чтобы добавить в избранное' });
         }
     }
 
@@ -172,25 +200,58 @@ function CrudExample({ searchQuery, setSearchQuery, currentUserInfo }) {
     }
 
     function resetSearch() {
-        setSearchQuery('');  // Сбрасываем поисковый запрос
-        fetchData();  // Загружаем все элементы
+        setSearchQuery('');
+        setSelectedCategories([]);
+        setSelectedCharacteristics({});
+        fetchData();
+    }
+
+    function handleCharacteristicChange(value, fieldName) {
+        const updatedCharacteristics = form.getFieldValue('characteristics').map((char, index) => {
+            if (index === fieldName) {
+                return { ...char, name: value, value: '' };
+            }
+            return char;
+        });
+        form.setFieldsValue({ characteristics: updatedCharacteristics });
+        updateCharacteristicOptions(updatedCharacteristics);
+    }
+
+    function getValuesByCharacteristicName(name) {
+        return characteristics.filter(c => c.name.startsWith(name)).map(c => c.name.split(': ')[1]);
+    }
+
+    function renderCharacteristicOptions() {
+        const options = [...new Set(characteristics.map(c => c.name.split(': ')[0]))];
+        return options.map(option => (
+            <Option key={option} value={option}>
+                {option}
+            </Option>
+        ));
+    }
+
+    function renderCharacteristicValues(name) {
+        if (!name) return [];
+        return characteristicOptions[name]?.values || [];
     }
 
     return (
         <>
-            <Row gutter={16} style={{ marginBottom: 16 }}>
-                <Col>
+            <Row gutter={16} className="filter-row">
+                <FilterPanel 
+                    setSelectedCategories={setSelectedCategories}
+                    setSelectedCharacteristics={setSelectedCharacteristics}
+                />
+                <div className="button-group">
                     <Button type="default" icon={<ReloadOutlined />} onClick={resetSearch}>
-                        Reset Search
+                        Сбросить поиск
                     </Button>
-                </Col>
-                {currentUserInfo && currentUserInfo.role === "admin" && (
-                    <Col>
+                    {currentUserInfo && currentUserInfo.role === "admin" && (
                         <Button type="primary" icon={<PlusOutlined />} onClick={() => showItem({})}>
-                            Add New Item
+                            Добавить новый элемент
                         </Button>
-                    </Col>
-                )}
+                    )}
+                </div>
             </Row>
             <Row gutter={16}>
                 {items.map(item => (
@@ -207,43 +268,46 @@ function CrudExample({ searchQuery, setSearchQuery, currentUserInfo }) {
                                         <EditOutlined />
                                     </Button>
                                 )}
-                                <Button type="link" onClick={() => addToFavorites(item.id)}>
+                                <Button
+                                    type="link"
+                                    onClick={() => addToFavorites(item.id)}
+                                >
                                     <HeartOutlined />
                                 </Button>
                             </>}
                             style={{ marginBottom: 16 }}
                         >
                             <img src={item.photo} alt={item.name} style={{ width: '100%', height: '200px', objectFit: 'cover' }} />
-                            <p>Brand: {item.brand_name}</p>
-                            <p>Quantity: {item.quantity}</p>
-                            <p>Cost: ${item.cost}</p>
+                            <p>Бренд: {item.brand_name}</p>
+                            <p>Количество: {item.quantity}</p>
+                            <p>Стоимость: ${item.cost}</p>
                         </Card>
                     </Col>
                 ))}
             </Row>
             {modalVisible && (
                 <Modal
-                    title={itemRecord.id ? `Edit Item ${itemRecord.id}` : 'Add New Item'}
+                    title={itemRecord.id ? `Редактировать элемент ${itemRecord.id}` : 'Добавить новый элемент'}
                     visible={modalVisible}
                     onOk={saveItem}
                     onCancel={closeModal}
                     footer={[
-                        <Button key="back" onClick={closeModal}>Cancel</Button>,
+                        <Button key="back" onClick={closeModal}>Отмена</Button>,
                         itemRecord.id && (
-                            <Button key="delete" danger onClick={removeItem}>Delete</Button>
+                            <Button key="delete" danger onClick={removeItem}>Удалить</Button>
                         ),
-                        <Button key="submit" type="primary" onClick={saveItem}>Save</Button>
+                        <Button key="submit" type="primary" onClick={saveItem}>Сохранить</Button>
                     ]}
                 >
                     <Form form={form} layout="vertical" onFinish={saveItem} initialValues={{ ...itemRecord }}>
-                        <Form.Item label="Name" name="name" rules={[{ required: true, message: 'Please input the name!' }]}>
+                        <Form.Item label="Название" name="name" rules={[{ required: true, message: 'Пожалуйста, введите название!' }]}>
                             <Input />
                         </Form.Item>
-                        <Form.Item label="Description" name="description" rules={[{ required: true, message: 'Please input the description!' }]}>
+                        <Form.Item label="Описание" name="description" rules={[{ required: true, message: 'Пожалуйста, введите описание!' }]}>
                             <Input.TextArea />
                         </Form.Item>
-                        <Form.Item label="Brand" name="id_brand" rules={[{ required: true, message: 'Please select the brand!' }]}>
-                            <Select placeholder="Select brand">
+                        <Form.Item label="Бренд" name="id_brand" rules={[{ required: true, message: 'Пожалуйста, выберите бренд!' }]}>
+                            <Select placeholder="Выберите бренд">
                                 {brands.map(brand => (
                                     <Option key={brand.id_brand} value={brand.id_brand}>
                                         {brand.name}
@@ -251,8 +315,8 @@ function CrudExample({ searchQuery, setSearchQuery, currentUserInfo }) {
                                 ))}
                             </Select>
                         </Form.Item>
-                        <Form.Item label="Country" name="id_country" rules={[{ required: true, message: 'Please select the country!' }]}>
-                            <Select placeholder="Select country">
+                        <Form.Item label="Страна" name="id_country" rules={[{ required: true, message: 'Пожалуйста, выберите страну!' }]}>
+                            <Select placeholder="Выберите страну">
                                 {countries.map(country => (
                                     <Option key={country.id_country} value={country.id_country}>
                                         {country.name}
@@ -260,17 +324,17 @@ function CrudExample({ searchQuery, setSearchQuery, currentUserInfo }) {
                                 ))}
                             </Select>
                         </Form.Item>
-                        <Form.Item label="Quantity" name="quantity" rules={[{ required: true, message: 'Please input the quantity!' }]}>
+                        <Form.Item label="Количество" name="quantity" rules={[{ required: true, message: 'Пожалуйста, введите количество!' }]}>
                             <Input type="number" />
                         </Form.Item>
-                        <Form.Item label="Cost" name="cost" rules={[{ required: true, message: 'Please input the cost!' }]}>
+                        <Form.Item label="Стоимость" name="cost" rules={[{ required: true, message: 'Пожалуйста, введите стоимость!' }]}>
                             <Input prefix="$" type="number" />
                         </Form.Item>
-                        <Form.Item label="Photo URL" name="photo" rules={[{ required: true, message: 'Please input the photo URL!' }]}>
+                        <Form.Item label="URL фотографии" name="photo" rules={[{ required: true, message: 'Пожалуйста, введите URL фотографии!' }]}>
                             <Input />
                         </Form.Item>
-                        <Form.Item label="Categories" name="categories" initialValue={itemRecord.categories || []}>
-                            <Select mode="multiple" placeholder="Select categories">
+                        <Form.Item label="Категории" name="categories" initialValue={itemRecord.categories || []}>
+                            <Select mode="multiple" placeholder="Выберите категории">
                                 {categories.map(category => (
                                     <Option key={category.id_category} value={category.id_category}>
                                         {category.name}
@@ -286,16 +350,15 @@ function CrudExample({ searchQuery, setSearchQuery, currentUserInfo }) {
                                             <Col span={8}>
                                                 <Form.Item
                                                     {...restField}
-                                                    name={[name, 'id_characteristic']}
-                                                    fieldKey={[fieldKey, 'id_characteristic']}
-                                                    rules={[{ required: true, message: 'Missing characteristic' }]}
+                                                    name={[name, 'name']}
+                                                    fieldKey={[fieldKey, 'name']}
+                                                    rules={[{ required: true, message: 'Отсутствует характеристика' }]}
                                                 >
-                                                    <Select placeholder="Select characteristic">
-                                                        {characteristics.map(characteristic => (
-                                                            <Option key={characteristic.id_characteristic} value={characteristic.id_characteristic}>
-                                                                {characteristic.name}
-                                                            </Option>
-                                                        ))}
+                                                    <Select 
+                                                        placeholder="Выберите характеристику" 
+                                                        onChange={(value) => handleCharacteristicChange(value, name)}
+                                                    >
+                                                        {renderCharacteristicOptions()}
                                                     </Select>
                                                 </Form.Item>
                                             </Col>
@@ -304,9 +367,18 @@ function CrudExample({ searchQuery, setSearchQuery, currentUserInfo }) {
                                                     {...restField}
                                                     name={[name, 'value']}
                                                     fieldKey={[fieldKey, 'value']}
-                                                    rules={[{ required: true, message: 'Missing value' }]}
+                                                    rules={[{ required: true, message: 'Отсутствует значение' }]}
                                                 >
-                                                    <Input placeholder="Value" />
+                                                    <Select 
+                                                        placeholder="Выберите значение"
+                                                        value={form.getFieldValue(['characteristics', name, 'value'])}
+                                                    >
+                                                        {renderCharacteristicValues(form.getFieldValue(['characteristics', name, 'name'])).map(value => (
+                                                            <Option key={value} value={value}>
+                                                                {value}
+                                                            </Option>
+                                                        ))}
+                                                    </Select>
                                                 </Form.Item>
                                             </Col>
                                             <Col span={2}>
@@ -314,14 +386,13 @@ function CrudExample({ searchQuery, setSearchQuery, currentUserInfo }) {
                                                     type="dashed"
                                                     onClick={() => remove(name)}
                                                     icon={<MinusCircleOutlined />}
-                                                >
-                                                </Button>
+                                                />
                                             </Col>
                                         </Row>
                                     ))}
                                     <Form.Item>
                                         <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
-                                            Add characteristic
+                                            Добавить характеристику
                                         </Button>
                                     </Form.Item>
                                 </>
@@ -332,26 +403,32 @@ function CrudExample({ searchQuery, setSearchQuery, currentUserInfo }) {
             )}
             {detailModalVisible && (
                 <Modal
-                    title={`Details for ${itemRecord.name}`}
+                    title={`Описание ${itemRecord.name}`}
                     visible={detailModalVisible}
                     onCancel={() => setDetailModalVisible(false)}
                     footer={[
-                        <Button key="close" onClick={() => setDetailModalVisible(false)}>Close</Button>
+                        <Button key="close" onClick={() => setDetailModalVisible(false)}>Закрыть</Button>
                     ]}
+                    style={{ top: 20 }}
+                    width={800}
                 >
-                    <p><strong>Brand:</strong> {itemRecord.brand_name}</p>
-                    <p><strong>Country:</strong> {itemRecord.country_name}</p>
-                    <p><strong>Description:</strong> {itemRecord.description}</p>
-                    <img src={itemRecord.photo} alt={itemRecord.name} style={{ width: '100%', height: '200px', objectFit: 'cover' }} />
-                    <p><strong>Quantity:</strong> {itemRecord.quantity}</p>
-                    <p><strong>Cost:</strong> ${itemRecord.cost}</p>
-                    <p><strong>Categories:</strong> {categories.filter(c => itemRecord.categories.includes(c.id_category)).map(c => c.name).join(', ')}</p>
-                    <p><strong>Characteristics:</strong></p>
-                    <ul>
-                        {itemRecord.characteristics.map(c => (
-                            <li key={c.id_characteristic}>{characteristics.find(ch => ch.id_characteristic === c.id_characteristic)?.name}: {c.value}</li>
-                        ))}
-                    </ul>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                        <img src={itemRecord.photo} alt={itemRecord.name} style={{ width: '100%', height: '400px', objectFit: 'cover', borderRadius: '16px', marginBottom: '20px' }} />
+                        <div style={{ textAlign: 'left', width: '100%' }}>
+                            <p><strong>Бренд:</strong> {itemRecord.brand_name}</p>
+                            <p><strong>Страна:</strong> {itemRecord.country_name}</p>
+                            <p><strong>Описание:</strong> {itemRecord.description}</p>
+                            <p><strong>Количество:</strong> {itemRecord.quantity}</p>
+                            <p><strong>Стоимость:</strong> ${itemRecord.cost}</p>
+                            <p><strong>Категории:</strong> {categories.filter(c => itemRecord.categories.includes(c.id_category)).map(c => c.name).join(', ')}</p>
+                            <p><strong>Характеристики:</strong></p>
+                            <ul>
+                                {itemRecord.characteristics.map(c => (
+                                    <li key={c.id_characteristic}>{c.name}: {c.value}</li>
+                                ))}
+                            </ul>
+                        </div>
+                    </div>
                 </Modal>
             )}
         </>

@@ -5,7 +5,7 @@ class ItemController {
     async createItem(req, res) {
         const userRole = await checkUserRole(req);
         if (userRole === 'admin') {
-            const { id, name, description, id_brand, id_country, quantity, cost, categories, characteristics } = req.body;
+            const { id, name, description, id_brand, id_country, quantity, cost, categories, characteristics, photo } = req.body;
             let item;
             try {
                 if (id) {
@@ -15,16 +15,27 @@ class ItemController {
                     );
                     await db.query('DELETE FROM category_watch WHERE id_watch = $1', [id]);
                     await db.query('DELETE FROM characteristic_watch WHERE id_watch = $1', [id]);
+                    await db.query('DELETE FROM photo WHERE id_item = $1', [id]);
                 } else {
                     item = await db.query(
                         'INSERT INTO watch (name, description, id_brand, id_country, quantity, cost) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
                         [name, description, id_brand, id_country, quantity, cost]
                     );
                 }
+
+                const itemId = item.rows[0].id;
+
+                if (photo) {
+                    await db.query(
+                        'INSERT INTO photo (id_item, photo) VALUES ($1, $2) RETURNING *',
+                        [itemId, photo]
+                    );
+                }
+
                 if (categories && categories.length > 0) {
                     const insertCategories = categories.map(category_id => {
                         if (category_id !== null) {
-                            return db.query('INSERT INTO category_watch (id_category, id_watch) VALUES ($1, $2)', [category_id, item.rows[0].id]);
+                            return db.query('INSERT INTO category_watch (id_category, id_watch) VALUES ($1, $2)', [category_id, itemId]);
                         }
                     });
                     await Promise.all(insertCategories);
@@ -32,7 +43,7 @@ class ItemController {
                 if (characteristics && characteristics.length > 0) {
                     const insertCharacteristics = characteristics.map(({ id_characteristic, value }) => {
                         if (id_characteristic !== null) {
-                            return db.query('INSERT INTO characteristic_watch (id_characteristic, id_watch, value) VALUES ($1, $2, $3)', [id_characteristic, item.rows[0].id, value]);
+                            return db.query('INSERT INTO characteristic_watch (id_characteristic, id_watch, value) VALUES ($1, $2, $3)', [id_characteristic, itemId, value]);
                         }
                     });
                     await Promise.all(insertCharacteristics);
@@ -58,8 +69,10 @@ class ItemController {
     }
 
     async getItems(req, res) {
-        const { name } = req.query;
+        const { name, categories, characteristics } = req.query;
         try {
+            console.log('Search params:', { name, categories, characteristics });
+
             let query = `
                 SELECT w.*, p.photo, b.name AS brand_name, c.name AS country_name
                 FROM watch w
@@ -68,11 +81,31 @@ class ItemController {
                 LEFT JOIN country c ON w.id_country = c.id_country
             `;
             let queryParams = [];
+            let conditions = [];
+
             if (name) {
-                query += ` WHERE w.name ILIKE $1`; // Используем ILIKE для регистронезависимого поиска
-                queryParams.push(`%${name}%`); // Обеспечиваем поиск с частичным соответствием
+                conditions.push(`w.name ILIKE $${queryParams.length + 1}`);
+                queryParams.push(`%${name}%`);
+            }
+            if (categories) {
+                const categoryArray = categories.split(',');
+                conditions.push(`w.id IN (
+                    SELECT cw.id_watch FROM category_watch cw WHERE cw.id_category = ANY($${queryParams.length + 1}::int[])
+                )`);
+                queryParams.push(categoryArray);
+            }
+            if (characteristics) {
+                const characteristicArray = characteristics.split(',');
+                conditions.push(`w.id IN (
+                    SELECT cw.id_watch FROM characteristic_watch cw WHERE cw.id_characteristic = ANY($${queryParams.length + 1}::int[])
+                )`);
+                queryParams.push(characteristicArray);
+            }
+            if (conditions.length > 0) {
+                query += ' WHERE ' + conditions.join(' AND ');
             }
             query += ' ORDER BY w.id';
+
             const items = await db.query(query, queryParams);
             res.json(items.rows);
         } catch (error) {
@@ -96,8 +129,6 @@ class ItemController {
             const categories = await db.query('SELECT id_category FROM category_watch WHERE id_watch = $1', [id]);
             const characteristics = await db.query('SELECT * FROM characteristic_watch WHERE id_watch = $1', [id]);
     
-            console.log('Item fetched from DB:', item.rows[0]); // Добавлено логирование
-    
             res.json({
                 ...item.rows[0],
                 categories: categories.rows.map(row => row.id_category),
@@ -108,7 +139,6 @@ class ItemController {
             res.status(500).json({ error: 'Internal server error' });
         }
     }
-    
 
     async deleteItem(req, res) {
         const userRole = await checkUserRole(req);
@@ -135,7 +165,6 @@ class ItemController {
             res.status(403).send('You do not have rights to delete items!');
         }
     }
-    
 
     async getBrands(req, res) {
         try {

@@ -3,7 +3,7 @@ const db = require('../db');
 class CharacteristicController {
     async getCharacteristics(req, res) {
         try {
-            const characteristics = await db.query('SELECT * FROM characteristic');
+            const characteristics = await db.query('SELECT * FROM characteristic ORDER BY id_characteristic ASC');
             res.json(characteristics.rows);
         } catch (error) {
             console.error('Database error:', error);
@@ -45,6 +45,30 @@ class CharacteristicController {
         try {
             await db.query('DELETE FROM characteristic WHERE id_characteristic = $1', [id]);
             res.json({ success: true });
+        } catch (error) {
+            console.error('Database error:', error);
+            res.status(500).send('Internal server error');
+        }
+    }
+
+    async getCharacteristicGroups(req, res) {
+        try {
+            const characteristicGroups = await db.query('SELECT * FROM characteristic_group ORDER BY id_group ASC');
+            res.json(characteristicGroups.rows);
+        } catch (error) {
+            console.error('Database error:', error);
+            res.status(500).send('Internal server error');
+        }
+    }
+
+    async getCharacteristicsByGroup(req, res) {
+        const { group } = req.query;
+        try {
+            const characteristics = await db.query(
+                'SELECT * FROM characteristic WHERE name LIKE $1',
+                [`${group}%`]
+            );
+            res.json(characteristics.rows);
         } catch (error) {
             console.error('Database error:', error);
             res.status(500).send('Internal server error');
