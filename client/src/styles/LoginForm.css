@@ -1,0 +1,66 @@
+.login-page {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+}
+
+.login-form-wrapper {
+    width: 440px;
+    padding: 40px 20px 40px 20px; /* Равномерное распределение отступов сверху и снизу */
+    border: 1px solid #f0f0f0;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    background: #fff;
+    text-align: center;
+}
+
+.auth-title {
+    margin-bottom: 60px; /* Увеличение отступа под заголовком */
+    font-size: 24px;
+    margin-top: 15px; /* Удаление стандартного отступа */
+}
+
+.auth-form .ant-form-item {
+    margin-bottom: 16px;
+    display: flex;
+    flex-direction: column;
+}
+
+.form-item {
+    margin-bottom: 24px; /* Увеличение отступа между элементами формы */
+}
+
+.auth-error-message {
+    color: red;
+    margin-bottom: 16px;
+}
+
+.auth-button {
+    background-color: black !important;
+    border-color: black !important;
+    width: 100% !important;
+    height: 45px; /* Увеличение размера кнопки */
+    font-size: 16px; /* Увеличение размера шрифта */
+    margin-top: 16px; /* Добавление отступа для отделения от формы */
+}
+
+.auth-switch {
+    text-align: center;
+    margin-top: 16px; /* Добавление отступа для разделения текста */
+}
+
+.ant-form-item-label {
+    white-space: normal; /* Разрешение переноса текста */
+    text-align: left; /* Выравнивание текста по левому краю */
+}
+
+.ant-form-item-label > label {
+    display: block; /* Блочный элемент для переноса текста */
+    width: 100px; /* Убедитесь, что метка занимает всю ширину */
+    margin-bottom: 8px; /* Добавьте немного отступа под меткой */
+}
+
+.ant-form-item-control-input {
+    width: 100%;
+}

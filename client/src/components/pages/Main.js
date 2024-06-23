@@ -13,7 +13,7 @@ export default function Home() {
         Звездные Audemars Piguet Royal Oak
       </h2>
       <div className="button-container">
-        <button className="buy-button">Купить</button>
+        <button className="buy-button">Каталог</button>
       </div>
       <div className="image-container">
         <img src={audemarshome} alt="Audemars Home" className="audemars-image" />

@@ -1,15 +1,16 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Button, Card, Modal, Form, Input, notification, Col, Row, Select } from 'antd';
-import { PlusOutlined, ReloadOutlined, EyeOutlined, EditOutlined, HeartOutlined, MinusCircleOutlined } from '@ant-design/icons';
+import { PlusOutlined, ReloadOutlined, EyeOutlined, EditOutlined, HeartOutlined, HeartFilled, MinusCircleOutlined } from '@ant-design/icons';
 import { ApiService } from '../../services/api.service';
-import '../../styles/CrudExample.css';
+import '../../styles/Store.css';
 import FilterPanel from '../FilterPanel';
 
 const apiService = new ApiService();
 const { Option } = Select;
 
-function CrudExample({ searchQuery, setSearchQuery, currentUserInfo }) {
+function Store({ searchQuery, setSearchQuery, currentUserInfo }) {
     const [items, setItems] = useState([]);
+    const [favorites, setFavorites] = useState(new Set());
     const [modalVisible, setModalVisible] = useState(false);
     const [detailModalVisible, setDetailModalVisible] = useState(false);
     const [itemRecord, setItemRecord] = useState({});
@@ -20,15 +21,25 @@ function CrudExample({ searchQuery, setSearchQuery, currentUserInfo }) {
     const [selectedCategories, setSelectedCategories] = useState([]);
     const [selectedCharacteristics, setSelectedCharacteristics] = useState({});
     const [characteristicOptions, setCharacteristicOptions] = useState({});
+    const [resetTrigger, setResetTrigger] = useState(false);
     const [form] = Form.useForm();
 
-    useEffect(() => {
-        fetchData();
-        fetchCategories();
-        fetchCharacteristics();
-        fetchBrands();
-        fetchCountries();
-    }, [searchQuery, selectedCategories, selectedCharacteristics]);
+    const closeModal = () => {
+        setModalVisible(false);
+        setDetailModalVisible(false);
+        setItemRecord({});
+        form.resetFields();
+    };
+
+    const fetchFavorites = useCallback(() => {
+        if (currentUserInfo && currentUserInfo.id) {
+            apiService.getFavorites(currentUserInfo.id).then(res => {
+                setFavorites(new Set(res.map(item => item.id)));
+            }).catch(err => {
+                notification.error({ message: 'Ошибка при загрузке избранных', description: 'Не удалось получить данные с сервера.' });
+            });
+        }
+    }, [currentUserInfo]);
 
     const fetchData = useCallback(() => {
         const params = new URLSearchParams();
@@ -52,40 +63,69 @@ function CrudExample({ searchQuery, setSearchQuery, currentUserInfo }) {
     useEffect(() => {
         fetchData();
     }, [fetchData]);
+    
+    useEffect(() => {
+        fetchCategories();
+        fetchCharacteristics();
+        fetchBrands();
+        fetchCountries();
+    }, []);
+    
+    useEffect(() => {
+        fetchFavorites();
+    }, [currentUserInfo, fetchFavorites]);
+    
 
-    function fetchCategories() {
+    const toggleFavorite = (itemId) => {
+        const isFavorite = favorites.has(itemId);
+        apiService.toggleFavoriteStatus(currentUserInfo.id, itemId, !isFavorite).then(() => {
+            if (isFavorite) {
+                setFavorites(prev => {
+                    const newSet = new Set(prev);
+                    newSet.delete(itemId);
+                    return newSet;
+                });
+            } else {
+                setFavorites(prev => new Set(prev).add(itemId));
+            }
+        }).catch(err => {
+            notification.error({ message: 'Ошибка при изменении статуса избранного', description: err.message });
+        });
+    };
+
+    const fetchCategories = () => {
         apiService.getCategories().then(res => {
             setCategories(res || []);
         }).catch(err => {
             notification.error({ message: 'Ошибка загрузки категорий', description: 'Не удалось получить данные с сервера.' });
         });
-    }
+    };
 
-    function fetchCharacteristics() {
+    const fetchCharacteristics = () => {
         apiService.getCharacteristics().then(res => {
             setCharacteristics(res || []);
         }).catch(err => {
             notification.error({ message: 'Ошибка загрузки характеристик', description: 'Не удалось получить данные с сервера.' });
         });
-    }
+    };
 
-    function fetchBrands() {
+    const fetchBrands = () => {
         apiService.getBrands().then(res => {
             setBrands(res || []);
         }).catch(err => {
             notification.error({ message: 'Ошибка загрузки брендов', description: 'Не удалось получить данные с сервера.' });
         });
-    }
+    };
 
-    function fetchCountries() {
+    const fetchCountries = () => {
         apiService.getCountries().then(res => {
             setCountries(res || []);
         }).catch(err => {
             notification.error({ message: 'Ошибка загрузки стран', description: 'Не удалось получить данные с сервера.' });
         });
-    }
+    };
 
-    function fetchItemWithDetails(id) {
+    const fetchItemWithDetails = (id) => {
         return apiService.get(`/item/${id}`).then(item => {
             return {
                 ...item,
@@ -98,16 +138,16 @@ function CrudExample({ searchQuery, setSearchQuery, currentUserInfo }) {
                 photo: item.photo || ''
             };
         });
-    }
+    };
 
-    function showItemDetails(item) {
+    const showItemDetails = (item) => {
         fetchItemWithDetails(item.id).then(fullItem => {
             setItemRecord(fullItem);
             setDetailModalVisible(true);
         });
-    }
+    };
 
-    function showItem(item = {}) {
+    const showItem = (item = {}) => {
         form.resetFields();
         setCharacteristicOptions({});
         if (item.id) {
@@ -132,9 +172,9 @@ function CrudExample({ searchQuery, setSearchQuery, currentUserInfo }) {
                 photo: ''
             });
         }
-    }
+    };
 
-    function updateCharacteristicOptions(characteristics) {
+    const updateCharacteristicOptions = (characteristics) => {
         const options = {};
         characteristics.forEach(c => {
             if (c.name) {
@@ -144,9 +184,9 @@ function CrudExample({ searchQuery, setSearchQuery, currentUserInfo }) {
             }
         });
         setCharacteristicOptions(options);
-    }
+    };
 
-    function saveItem() {
+    const saveItem = () => {
         form.validateFields().then(values => {
             const method = itemRecord.id ? 'put' : 'post';
             const characteristicsData = values.characteristics
@@ -166,11 +206,11 @@ function CrudExample({ searchQuery, setSearchQuery, currentUserInfo }) {
                 notification.error({ message: `Ошибка сохранения элемента: ${err.message}`, description: err.message });
             });
         }).catch(info => {
-            console.log('Validate Failed:', info);
+            console.log('Ошибка валидации:', info);
         });
-    }
+    };
 
-    function removeItem() {
+    const removeItem = () => {
         apiService.delete(`/item/${itemRecord.id}`).then(() => {
             fetchData();
             closeModal();
@@ -178,35 +218,13 @@ function CrudExample({ searchQuery, setSearchQuery, currentUserInfo }) {
         }).catch(err => {
             notification.error({ message: 'Ошибка удаления элемента', description: err.message });
         });
-    }
+    };
 
-    function addToFavorites(itemId) {
-        if (currentUserInfo && currentUserInfo.id) {
-            apiService.postToFavorites(currentUserInfo.id, itemId).then(() => {
-                notification.success({ message: 'Добавлено в избранное' });
-            }).catch(err => {
-                notification.error({ message: 'Ошибка добавления в избранное', description: err.message });
-            });
-        } else {
-            notification.error({ message: 'Необходимо войти в систему, чтобы добавить в избранное' });
-        }
-    }
+    const resetSearch = () => {
+        window.location.reload();  
+    };
 
-    function closeModal() {
-        setModalVisible(false);
-        setDetailModalVisible(false);
-        setItemRecord({});
-        form.resetFields();
-    }
-
-    function resetSearch() {
-        setSearchQuery('');
-        setSelectedCategories([]);
-        setSelectedCharacteristics({});
-        fetchData();
-    }
-
-    function handleCharacteristicChange(value, fieldName) {
+    const handleCharacteristicChange = (value, fieldName) => {
         const updatedCharacteristics = form.getFieldValue('characteristics').map((char, index) => {
             if (index === fieldName) {
                 return { ...char, name: value, value: '' };
@@ -215,32 +233,33 @@ function CrudExample({ searchQuery, setSearchQuery, currentUserInfo }) {
         });
         form.setFieldsValue({ characteristics: updatedCharacteristics });
         updateCharacteristicOptions(updatedCharacteristics);
-    }
+    };
 
-    function getValuesByCharacteristicName(name) {
+    const getValuesByCharacteristicName = (name) => {
         return characteristics.filter(c => c.name.startsWith(name)).map(c => c.name.split(': ')[1]);
-    }
+    };
 
-    function renderCharacteristicOptions() {
+    const renderCharacteristicOptions = () => {
         const options = [...new Set(characteristics.map(c => c.name.split(': ')[0]))];
         return options.map(option => (
             <Option key={option} value={option}>
                 {option}
             </Option>
         ));
-    }
+    };
 
-    function renderCharacteristicValues(name) {
+    const renderCharacteristicValues = (name) => {
         if (!name) return [];
         return characteristicOptions[name]?.values || [];
-    }
+    };
 
     return (
         <>
             <Row gutter={16} className="filter-row">
-                <FilterPanel 
+                <FilterPanel
                     setSelectedCategories={setSelectedCategories}
                     setSelectedCharacteristics={setSelectedCharacteristics}
+                    resetTrigger={resetTrigger}
                 />
                 <div className="button-group">
                     <Button type="default" icon={<ReloadOutlined />} onClick={resetSearch}>
@@ -260,20 +279,19 @@ function CrudExample({ searchQuery, setSearchQuery, currentUserInfo }) {
                             hoverable
                             title={item.name}
                             extra={<>
-                                <Button type="link" onClick={() => showItemDetails(item)}>
+                                <Button type="link" onClick={() => showItemDetails(item)} className="icon-button">
                                     <EyeOutlined />
                                 </Button>
                                 {currentUserInfo && currentUserInfo.role === "admin" && (
-                                    <Button type="link" onClick={() => showItem(item)}>
+                                    <Button type="link" onClick={() => showItem(item)} className="icon-button">
                                         <EditOutlined />
                                     </Button>
                                 )}
                                 <Button
                                     type="link"
-                                    onClick={() => addToFavorites(item.id)}
-                                >
-                                    <HeartOutlined />
-                                </Button>
+                                    onClick={() => toggleFavorite(item.id)}
+                                    icon={favorites.has(item.id) ? <HeartFilled className="icon-button filled" /> : <HeartOutlined className="icon-button" />}
+                                />
                             </>}
                             style={{ marginBottom: 16 }}
                         >
@@ -287,7 +305,7 @@ function CrudExample({ searchQuery, setSearchQuery, currentUserInfo }) {
             </Row>
             {modalVisible && (
                 <Modal
-                    title={itemRecord.id ? `Редактировать элемент ${itemRecord.id}` : 'Добавить новый элемент'}
+                    title={itemRecord.id ? `Редактирование элемента` : 'Добавить новый элемент'}
                     visible={modalVisible}
                     onOk={saveItem}
                     onCancel={closeModal}
@@ -307,7 +325,7 @@ function CrudExample({ searchQuery, setSearchQuery, currentUserInfo }) {
                             <Input.TextArea />
                         </Form.Item>
                         <Form.Item label="Бренд" name="id_brand" rules={[{ required: true, message: 'Пожалуйста, выберите бренд!' }]}>
-                            <Select placeholder="Выберите бренд">
+                            <Select placeholder="Выберите бренд" allowClear>
                                 {brands.map(brand => (
                                     <Option key={brand.id_brand} value={brand.id_brand}>
                                         {brand.name}
@@ -316,7 +334,7 @@ function CrudExample({ searchQuery, setSearchQuery, currentUserInfo }) {
                             </Select>
                         </Form.Item>
                         <Form.Item label="Страна" name="id_country" rules={[{ required: true, message: 'Пожалуйста, выберите страну!' }]}>
-                            <Select placeholder="Выберите страну">
+                            <Select placeholder="Выберите страну" allowClear>
                                 {countries.map(country => (
                                     <Option key={country.id_country} value={country.id_country}>
                                         {country.name}
@@ -354,8 +372,8 @@ function CrudExample({ searchQuery, setSearchQuery, currentUserInfo }) {
                                                     fieldKey={[fieldKey, 'name']}
                                                     rules={[{ required: true, message: 'Отсутствует характеристика' }]}
                                                 >
-                                                    <Select 
-                                                        placeholder="Выберите характеристику" 
+                                                    <Select
+                                                        placeholder="Выберите характеристику"
                                                         onChange={(value) => handleCharacteristicChange(value, name)}
                                                     >
                                                         {renderCharacteristicOptions()}
@@ -369,7 +387,7 @@ function CrudExample({ searchQuery, setSearchQuery, currentUserInfo }) {
                                                     fieldKey={[fieldKey, 'value']}
                                                     rules={[{ required: true, message: 'Отсутствует значение' }]}
                                                 >
-                                                    <Select 
+                                                    <Select
                                                         placeholder="Выберите значение"
                                                         value={form.getFieldValue(['characteristics', name, 'value'])}
                                                     >
@@ -403,7 +421,7 @@ function CrudExample({ searchQuery, setSearchQuery, currentUserInfo }) {
             )}
             {detailModalVisible && (
                 <Modal
-                    title={`Описание ${itemRecord.name}`}
+                    title={`Описание`}
                     visible={detailModalVisible}
                     onCancel={() => setDetailModalVisible(false)}
                     footer={[
@@ -435,4 +453,4 @@ function CrudExample({ searchQuery, setSearchQuery, currentUserInfo }) {
     );
 }
 
-export default CrudExample;
+export default Store;

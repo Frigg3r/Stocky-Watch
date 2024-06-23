@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Navbar, Nav, Container, Button, Form } from 'react-bootstrap';
 import { Input } from 'antd';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { AuthService } from '../services/auth.service';
 import logo from '../images/stockywatch.png';
 import '../styles/Header.css';
@@ -10,8 +10,10 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 
 const authService = new AuthService();
 
-function Header({ setSearchQuery }) {
+function Header({ setSearchQuery, resetTrigger }) {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const [searchValue, setSearchValue] = useState(''); // Добавить состояние для поиска
+    const location = useLocation();
 
     useEffect(() => {
         authService.checkSession().then(res => {
@@ -19,7 +21,15 @@ function Header({ setSearchQuery }) {
         });
     }, []);
 
+    useEffect(() => {
+        if (resetTrigger) {
+            setSearchValue(''); // Сбросить значение поиска
+            setSearchQuery(''); // Сбросить поисковый запрос
+        }
+    }, [resetTrigger, setSearchQuery]);
+
     function handleSearch(value) {
+        setSearchValue(value);
         setSearchQuery(value);
     }
 
@@ -38,23 +48,26 @@ function Header({ setSearchQuery }) {
                 <Navbar.Toggle aria-controls="responsive-navbar-nav" />
                 <Navbar.Collapse id="responsive-navbar-nav">
                     <Nav className="me-auto">
-                        <Nav.Link href="#crud-example">Каталог</Nav.Link>
-                        <Nav.Link href="#favorites">Избранное</Nav.Link>
-                        <Nav.Link href="#about-us">О нас</Nav.Link>
+                        <Nav.Link as={Link} to="/store">Каталог</Nav.Link>
+                        <Nav.Link as={Link} to="/favorites">Избранное</Nav.Link>
                     </Nav>
-                    <Form inline ="true">
-                        <Input.Search
-                            onSearch={handleSearch}
-                            placeholder="Поиск..."
-                            enterButton="Найти"
-                            size="large"
-                            className="custom-search-button"
-                        />
-                    </Form>
+                    {location.pathname === '/store' && (
+                        <Form inline="true">
+                            <Input.Search
+                                onSearch={handleSearch}
+                                placeholder="Поиск..."
+                                enterButton="Найти"
+                                size="large"
+                                className="custom-search-button"
+                                value={searchValue} // Привязка к состоянию поиска
+                                onChange={(e) => setSearchValue(e.target.value)} // Обновление состояния поиска
+                            />
+                        </Form>
+                    )}
                     <Nav className="ml-auto">
                         {isLoggedIn ? (
                             <>
-                                <span className="nav-link">Авторизован</span>
+                                <Link to="/profile" className="nav-link">Профиль</Link>
                                 <Button variant="outline-light" onClick={logout}>Выйти</Button>
                             </>
                         ) : (

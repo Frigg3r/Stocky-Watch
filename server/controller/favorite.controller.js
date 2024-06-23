@@ -48,6 +48,20 @@ class FavoriteController {
             res.status(500).json({ message: 'Error removing from favorites: ' + error.message });
         }
     }
+
+    async getFavoriteStatus(req, res) {
+        const { userId, itemId } = req.params;
+        try {
+            const result = await db.query(
+                'SELECT * FROM favorite WHERE id_user = $1 AND id_watch = $2',
+                [userId, itemId]
+            );
+            res.json(result.rows.length > 0);
+        } catch (error) {
+            console.error('Error getting favorite status:', error);
+            res.status(500).send('Error getting favorite status: ' + error.message);
+        }
+    }
 }
 
 module.exports = new FavoriteController();

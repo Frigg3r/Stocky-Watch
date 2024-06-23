@@ -9,11 +9,9 @@ const cryptoKey = 'это_ключик_для_шифрования))';
 class AuthController {
     async checkSession(req, res) {
         const sessionCookie = req.cookies['APP_SESSION'];
-        console.log('Session cookie:', sessionCookie); // Debugging information
         const userName = aes.decryptText(sessionCookie, cryptoKey);
-        console.log('Decrypted userName:', userName); // Debugging information
         const result = await db.query(
-            'SELECT U.id, U.login, R.name as role FROM users U ' +
+            'SELECT U.id, U.login, U.name, U.lastname, U.email, U.phone, R.name as role FROM users U ' +
                 'INNER JOIN roles R ON R.id = U.role ' +
                 'WHERE U.login = $1',
             [userName]
@@ -24,6 +22,10 @@ class AuthController {
                 userInfo: {
                     id: result.rows[0].id,
                     login: result.rows[0].login,
+                    name: result.rows[0].name,
+                    lastname: result.rows[0].lastname,
+                    email: result.rows[0].email,
+                    phone: result.rows[0].phone,
                     role: result.rows[0].role
                 }
             });
@@ -34,11 +36,11 @@ class AuthController {
         }
     }
 
+
     async login(req, res) {
         const userRecord = req.body;
-        console.log('Login request:', userRecord); // Debugging information
         const result = await db.query(
-            'SELECT U.id, U.login, R.name as role FROM users U ' +
+            'SELECT U.id, U.login, U.name, U.lastname, U.email, U.phone, R.name as role FROM users U ' +
                 'INNER JOIN roles R ON R.id = U.role ' +
                 'WHERE U.login = $1 AND U.password = $2',
             [userRecord.login, md5(userRecord.password)]
@@ -53,22 +55,25 @@ class AuthController {
                 userInfo: {
                     id: result.rows[0].id,
                     login: result.rows[0].login,
+                    name: result.rows[0].name,
+                    lastname: result.rows[0].lastname,
+                    email: result.rows[0].email,
+                    phone: result.rows[0].phone,
                     role: result.rows[0].role
                 }
             };
         } else {
             response = { success: false };
         }
-        console.log('Login response:', response); // Debugging information
         res.json(response);
     }
 
+
     async register(req, res) {
         const userRecord = req.body;
-        console.log('Register request:', userRecord); // Debugging information
         const checkResult = await db.query('SELECT * FROM users WHERE login = $1', [userRecord.login]);
         let response;
-        if (!checkResult.rows[0]) {
+        if (checkResult.rows.length === 0) {
             const defaultRoleResult = await db.query('SELECT id FROM roles WHERE name = $1', ['user']);
             const defaultRoleId = defaultRoleResult.rows[0].id;
             await db.query('INSERT INTO users (login, password, role) values ($1, $2, $3)', [
@@ -78,8 +83,8 @@ class AuthController {
             ]);
             const result = await db.query(
                 'SELECT U.id, U.login, R.name as role FROM users U ' +
-                    'INNER JOIN roles R ON R.id = U.role ' +
-                    'WHERE U.login = $1',
+                'INNER JOIN roles R ON R.id = U.role ' +
+                'WHERE U.login = $1',
                 [userRecord.login]
             );
             res.cookie('APP_SESSION', aes.encryptText(userRecord.login, cryptoKey), {
@@ -93,18 +98,56 @@ class AuthController {
                     role: result.rows[0].role
                 }
             };
+            res.json(response);
         } else {
-            response = { success: false };
+            response = { success: false, message: 'Login already exists' };
+            res.status(400).json(response);
         }
-        console.log('Register response:', response); // Debugging information
-        res.json(response);
-    }
+    }    
 
     async logout(req, res) {
         res.clearCookie('APP_SESSION');
         console.log('Logout request received'); // Debugging information
         res.json({ success: true });
     }
+
+    async getUser(req, res) {
+        const userId = req.params.id;
+        const result = await db.query('SELECT * FROM users WHERE id = $1', [userId]);
+        if (result.rows.length > 0) {
+            res.json({
+                success: true,
+                userInfo: result.rows[0]
+            });
+        } else {
+            res.status(404).json({ success: false, message: 'User not found' });
+        }
+    }
+
+// auth.controller.js
+async updateUser(req, res) {
+    const userId = req.params.id;
+    const { name, lastname, email, phone } = req.body;
+    await db.query('UPDATE users SET name = $1, lastname = $2, email = $3, phone = $4 WHERE id = $5', [name, lastname, email, phone, userId]);
+    const result = await db.query('SELECT U.id, U.login, U.name, U.lastname, U.email, U.phone, R.name as role FROM users U INNER JOIN roles R ON R.id = U.role WHERE U.id = $1', [userId]);
+    if (result.rows.length > 0) {
+        res.json({
+            success: true,
+            userInfo: {
+                id: result.rows[0].id,
+                login: result.rows[0].login,
+                name: result.rows[0].name,
+                lastname: result.rows[0].lastname,
+                email: result.rows[0].email,
+                phone: result.rows[0].phone,
+                role: result.rows[0].role // убедитесь, что роль возвращается
+            }
+        });
+    } else {
+        res.status(500).json({ success: false, message: 'Failed to update user' });
+    }
+}
+
 }
 
 module.exports = new AuthController();

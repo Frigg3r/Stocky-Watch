@@ -6,7 +6,7 @@ import '../styles/FilterPanel.css';  // Подключаем CSS файл
 const apiService = new ApiService();
 const { Option } = Select;
 
-function FilterPanel({ setSelectedCategories, setSelectedCharacteristics }) {
+function FilterPanel({ setSelectedCategories, setSelectedCharacteristics, resetTrigger }) {
     const [categories, setCategories] = useState([]);
     const [characteristics, setCharacteristics] = useState([]);
     const [brands, setBrands] = useState([]);
@@ -18,6 +18,13 @@ function FilterPanel({ setSelectedCategories, setSelectedCharacteristics }) {
         fetchBrands();
         fetchCountries();
     }, []);
+
+    useEffect(() => {
+        if (resetTrigger) {
+            setSelectedCategories([]);
+            setSelectedCharacteristics({});
+        }
+    }, [resetTrigger]);
 
     function fetchCategories() {
         apiService.getCategories().then(res => {
@@ -79,6 +86,7 @@ function FilterPanel({ setSelectedCategories, setSelectedCharacteristics }) {
                                 placeholder="Выберите категории"
                                 onChange={onCategoryChange}
                                 style={{ width: '100%' }}
+                                value={resetTrigger ? [] : undefined}
                             >
                                 {categories.map(category => (
                                     <Option key={category.id_category} value={category.id_category}>
@@ -97,6 +105,7 @@ function FilterPanel({ setSelectedCategories, setSelectedCharacteristics }) {
                                 placeholder="Выберите водозащиту"
                                 onChange={(values) => onCharacteristicChange(values, 'Водозащита')}
                                 style={{ width: '100%' }}
+                                value={resetTrigger ? [] : undefined}
                             >
                                 {getCharacteristicsByGroup('Водозащита').map(characteristic => (
                                     <Option key={characteristic.id_characteristic} value={characteristic.name.replace('Водозащита: ', '')}>
@@ -115,6 +124,7 @@ function FilterPanel({ setSelectedCategories, setSelectedCharacteristics }) {
                                 placeholder="Выберите материал"
                                 onChange={(values) => onCharacteristicChange(values, 'Материал')}
                                 style={{ width: '100%' }}
+                                value={resetTrigger ? [] : undefined}
                             >
                                 {getCharacteristicsByGroup('Материал').map(characteristic => (
                                     <Option key={characteristic.id_characteristic} value={characteristic.name.replace('Материал: ', '')}>
@@ -133,6 +143,7 @@ function FilterPanel({ setSelectedCategories, setSelectedCharacteristics }) {
                                 placeholder="Выберите форму"
                                 onChange={(values) => onCharacteristicChange(values, 'Форма')}
                                 style={{ width: '100%' }}
+                                value={resetTrigger ? [] : undefined}
                             >
                                 {getCharacteristicsByGroup('Форма').map(characteristic => (
                                     <Option key={characteristic.id_characteristic} value={characteristic.name.replace('Форма: ', '')}>
@@ -146,10 +157,12 @@ function FilterPanel({ setSelectedCategories, setSelectedCharacteristics }) {
                         <div className="filter-group">
                             <label>Производитель</label>
                             <Select
+                                mode="multiple"
                                 className="filter-select"
                                 placeholder="Выберите производителя"
-                                onChange={(value) => onCharacteristicChange([value], 'id_brand')}
+                                onChange={(values) => onCharacteristicChange(values, 'id_brand')}
                                 style={{ width: '100%' }}
+                                value={resetTrigger ? undefined : undefined}
                             >
                                 {brands.map(brand => (
                                     <Option key={brand.id_brand} value={brand.id_brand}>
@@ -163,10 +176,12 @@ function FilterPanel({ setSelectedCategories, setSelectedCharacteristics }) {
                         <div className="filter-group">
                             <label>Страна</label>
                             <Select
+                                mode="multiple"
                                 className="filter-select"
                                 placeholder="Выберите страну"
-                                onChange={(value) => onCharacteristicChange([value], 'id_country')}
+                                onChange={(values) => onCharacteristicChange(values, 'id_country')}
                                 style={{ width: '100%' }}
+                                value={resetTrigger ? undefined : undefined}
                             >
                                 {countries.map(country => (
                                     <Option key={country.id_country} value={country.id_country}>

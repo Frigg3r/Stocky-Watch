@@ -1,0 +1,74 @@
+.user-profile {
+    max-width: 600px; /* Уменьшаем максимальную ширину контейнера */
+    margin: 0 auto;
+    padding: 40px 20px; /* Внутренние отступы */
+    background: #fff;
+    border-radius: 15px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.user-profile h1 {
+    font-size: 24px;
+    margin-bottom: 20px;
+    font-weight: bold;
+    text-align: center;
+}
+
+.user-profile .ant-input[disabled] {
+    color: #000000; /* Устанавливаем цвет текста черным */
+    background-color: #f5f5f5; /* Изменяем цвет фона, если необходимо */
+}
+.user-profile .ant-form-item {
+    margin-bottom: 16px;
+}
+
+.user-profile .ant-form-item-label {
+    padding: 0;
+    line-height: 1.5;
+}
+
+.user-profile .ant-form-item-label > label {
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.user-profile .ant-input {
+    border-radius: 5px;
+    padding: 8px;
+    font-size: 14px;
+    width: 100%;
+    max-width: 100%; /* Устанавливаем максимальную ширину полей */
+    margin-top: 5px;
+}
+
+.user-profile .edit-button {
+    margin-top: 24px; /* Выровнять кнопки с полями */
+    padding: 4px 10px;
+    font-size: 14px; /* Увеличиваем размер шрифта */
+    white-space: nowrap; /* Предотвращаем перенос текста */
+}
+
+.user-profile .button-container {
+    text-align: center;
+    width: 100%; /* Ширина контейнера */
+}
+
+.user-profile .save-all-button {
+    margin-top: 20px;
+    width: 100%; /* Устанавливаем ширину кнопки */
+    height: 100%;
+    padding: 12px;
+    font-size: 16px; /* Увеличиваем размер шрифта */
+    background-color: #000000;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    text-align: center;
+    white-space: nowrap; /* Предотвращаем перенос текста */
+    overflow: hidden; /* Предотвращаем переполнение */
+    text-overflow: ellipsis; /* Троеточие для переполненного текста */
+}
+
+.user-profile .save-all-button:hover {
+    background-color: #D9B97E !important;
+}

@@ -7,15 +7,15 @@ export class ApiService {
             credentials: 'include',
             headers: { 'Accept': 'application/json', ...options.headers }
         }).then(response => {
-            console.log('ApiService response:', response); // Debugging information
+            console.log('Ответ ApiService:', response); // Debugging information
             if (!response.ok) {
-                throw new Error('Server responded with an error: ' + response.statusText);
+                throw new Error('Сервер ответил с ошибкой: ' + response.statusText);
             }
             return response.json().catch(error => {
-                throw new Error('Failed to parse JSON response: ' + error);
+                throw new Error('Ошибка парсинга JSON: ' + error);
             });
         }).catch(error => {
-            console.error('ApiService error:', error);
+            console.error('Ошибка ApiService:', error);
             throw error;
         });
     }
@@ -47,7 +47,7 @@ export class ApiService {
     }
 
     postToFavorites(userId, itemId) {
-        console.log('Adding to favorites:', { userId, itemId }); // Debugging information
+        console.log('Добавление в избранное:', { userId, itemId });
         return this.post('/favorites', { userId, itemId });
     }
 
@@ -86,4 +86,21 @@ export class ApiService {
     searchItems(params) {
         return this.get(`/search?${params}`);
     }
+
+    updateUser(userId, data) {
+        return this.put(`/user/${userId}`, data);
+    }
+
+    getFavoriteStatus(userId, itemId) {
+        return this.get(`/favorites/${userId}/${itemId}`);
+    }
+
+    toggleFavoriteStatus(userId, itemId, isFavorite) {
+        if (isFavorite) {
+            return this.postToFavorites(userId, itemId);
+        } else {
+            return this.removeFromFavorites(userId, itemId);
+        }
+    }
+    
 }

@@ -3,8 +3,6 @@ const db = require('../db');
 class SearchController {
     async searchItems(req, res) {
         const { name, categories, Водозащита, Материал, Форма, id_brand, id_country } = req.query;
-        // Убираем строки с логированием
-        // console.log(`Search params - name: ${name}, categories: ${categories}, Водозащита: ${Водозащита}, Материал: ${Материал}, Форма: ${Форма}, id_brand: ${id_brand}, id_country: ${id_country}`);
 
         let query = `
             SELECT w.*, p.photo, b.name AS brand_name, c.name AS country_name
@@ -52,13 +50,15 @@ class SearchController {
         }
 
         if (id_brand) {
-            whereClauses.push(`w.id_brand = $${whereClauses.length + 1}`);
-            queryParams.push(id_brand);
+            const brandIds = id_brand.split(',').map(id => parseInt(id, 10));
+            whereClauses.push(`w.id_brand = ANY($${whereClauses.length + 1}::int[])`);
+            queryParams.push(brandIds);
         }
 
         if (id_country) {
-            whereClauses.push(`w.id_country = $${whereClauses.length + 1}`);
-            queryParams.push(id_country);
+            const countryIds = id_country.split(',').map(id => parseInt(id, 10));
+            whereClauses.push(`w.id_country = ANY($${whereClauses.length + 1}::int[])`);
+            queryParams.push(countryIds);
         }
 
         if (whereClauses.length > 0) {
@@ -66,10 +66,6 @@ class SearchController {
         }
 
         query += ' ORDER BY w.id';
-
-        // Убираем строки с логированием
-        // console.log('SQL Query:', query);
-        // console.log('Query Params:', queryParams);
 
         try {
             const items = await db.query(query, queryParams);

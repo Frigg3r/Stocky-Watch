@@ -29,4 +29,7 @@ router.put('/photo/:id', photoController.updatePhoto);
 // Добавление нового маршрута для получения характеристик по группам
 router.get('/characteristics/by-group', characteristicController.getCharacteristicsByGroup);
 
+router.get('/favorites/:userId/:itemId', favoriteController.getFavoriteStatus);
+
+
 module.exports = router;

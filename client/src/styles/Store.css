@@ -156,3 +156,16 @@
   margin: 10px; /* This will add space to the right of each button */
 }
 
+.button-group .ant-btn-primary {
+  background-color: black;
+  border-color: black;
+}
+
+/* Icon button styles */
+.icon-button {
+  color: black !important; /* Make icons black */
+}
+
+.icon-button.filled {
+  color: red !important; /* Ensure filled heart icon is red */
+}
